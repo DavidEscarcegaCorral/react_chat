@@ -1,155 +1,133 @@
-from core.tcp_server import TCPServer
+﻿from core.tcp_server import TCPServer
 from core.udp_server import UDPServer
 from clients.tcp_client import TCPClient
 from clients.udp_client import UDPClient
 import threading
 
-"""
-Modulo controlador del servidor.
-"""
-
-
 class ServerController:
-    """
-    Clase que representa el controlador del servidor.
-    Permite configurarlo y ejecutarlo.
-    """
-
     def __init__(self):
-        """
-        Constructor del controlador del servidor.
-        Por defecto settea el srvidor en None, asi como el
-        protocolo, por defecto esta en la ip de loopback y puerto
-        1060, la lista de clientes es un conjunto para evitar los diplicados,
-        tiene un diccionario de los sockets de los clientes, el historial de mensajes
-        y un apuntador al hilo principal del servidor para poder recuperarlo posteriormente.
-        """
+        from utils.logger_config import get_logger
+        self.logger = get_logger('server_controller')
+        
         self.server = None
         self.protocol = None
-        self.HOST = "127.0.0.1"
+        self.HOST = '127.0.0.1'
         self.PORT = 1060
         self.clients = set()
         self.client_objs = {}
         self.history = []
-        self.user_dms = {}  # Diccionario para almacenar DMs por usuario: {dm_username: [mensajes]}
+        self.user_dms = {}
         self._lock = threading.RLock()
+        self.logger.info('ServerController inicializado')
 
     def run(self, protocol: str):
-        """
-        Funcion que ejecuta el servidor, recibe el tipo
-        de protocolo a utilizar en el servidor.
-        :param protocol: protocolo del servidor.
-        """
+        self.logger.info(f'Intentando iniciar servidor: {protocol}')
         with self._lock:
             if self.server is not None:
-                return {"error": "Servidor ya corriendo. Deten el servidor primero."}
+                self.logger.warning('Servidor ya corriendo')
+                return {'error': 'Servidor ya corriendo. Detén el servidor primero.'}
             try:
-                if protocol == "tcp":
+                if protocol == 'tcp':
                     self.server = TCPServer(self.HOST, self.PORT, self)
-                elif protocol == "udp":
+                elif protocol == 'udp':
                     self.server = UDPServer(self.HOST, self.PORT, self)
                 else:
-                    return {"error": "Protocolo invalido"}
+                    self.logger.error(f'Protocolo inválido: {protocol}')
+                    return {'error': 'Protocolo inválido'}
                 self.protocol = protocol
                 self.server.start()
-
-                # Verificar que el servidor realmente inicio
+                
                 import time
                 time.sleep(0.5)
                 if not self.server.running:
-                    error_msg = f"El servidor {protocol.upper()} no pudo iniciar correctamente"
+                    self.logger.error(f'El servidor {protocol.upper()} no pudo iniciar')
                     self.server = None
                     self.protocol = None
-                    return {"error": error_msg}
-                return {"status": f"Servidor {protocol} iniciado"}
+                    return {'error': f'El servidor {protocol.upper()} no pudo iniciar correctamente'}
+                self.logger.info(f'Servidor {protocol} iniciado exitosamente')
+                return {'status': f'Servidor {protocol} iniciado'}
             except Exception as e:
+                self.logger.error(f'Error al iniciar servidor: {e}')
                 self.server = None
                 self.protocol = None
-                return {"error": f"Error al iniciar servidor: {str(e)}"}
+                return {'error': f'Error al iniciar servidor: {str(e)}'}
 
     def shutdown(self):
-        """
-        Funcion que detiene el servidor.
-        """
+        self.logger.info('Solicitud de shutdown del servidor')
         with self._lock:
             if not self.server:
-                return {"status": "No hay servidor corriendo"}
-            # Detener y desconectar todos los clientes
+                self.logger.warning('No hay servidor corriendo')
+                return {'status': 'No hay servidor corriendo'}
+            
             for username, cli in list(self.client_objs.items()):
                 try:
                     cli.stop()
+                    self.logger.info(f'Cliente desconectado: {username}')
                 except Exception as e:
-                    pass
+                    self.logger.error(f'Error al desconectar cliente {username}: {e}')
+            
             self.client_objs.clear()
-            # Detener el servidor
+            
             try:
                 self.server.stop()
                 if hasattr(self.server, 'join'):
                     self.server.join(timeout=2)
             except Exception as e:
-                pass
+                self.logger.error(f'Error al detener servidor: {e}')
+            
             self.server = None
             self.protocol = None
-            return {"status": "Servidor detenido"}
+            self.logger.info('Servidor detenido exitosamente')
+            return {'status': 'Servidor detenido'}
 
     def is_running(self):
-        """
-        Funcion que permite validar si el servidor esta corriendo.
-        """
         return self.server is not None
 
     def create_client(self, username: str):
-        """
-        Funcion que permite crear un cliente en el servidor,
-        segun el protocolo actuaol del servidor.
-        :param username: nombre del usuario.
-        """
+        self.logger.info(f'Creando cliente: {username}')
         with self._lock:
             if username in self.clients:
+                self.logger.warning(f'Usuario {username} ya existe')
                 return None
             if not self.is_running():
+                self.logger.warning('Servidor no corriendo')
                 return None
+            
             self.clients.add(username)
-
-            # Crear cliente segun el protocolo actual
-            if self.protocol == "tcp":
+            
+            if self.protocol == 'tcp':
                 client = TCPClient(username, self.HOST, self.PORT, self)
-            elif self.protocol == "udp":
+            elif self.protocol == 'udp':
                 client = UDPClient(username, self.HOST, self.PORT, self)
             else:
+                self.logger.error('Protocolo no definido')
                 return None
+            
             self.client_objs[username] = client
             client.start()
-
-            # Dar tiempo para que se conecte (Solo TCP)
-            if self.protocol == "tcp":
+            
+            if self.protocol == 'tcp':
                 import time
                 time.sleep(0.5)
+            
+            self.logger.info(f'Cliente {username} creado exitosamente')
             return client
 
     def remove_client(self, username: str):
-        """
-        Funcion que permite eliminar un cliente
-        de la lista clientes y sockets del servidor
-        :param username: nombre del usuario.
-        """
+        self.logger.info(f'Removiendo cliente: {username}')
         with self._lock:
             if username in self.client_objs:
                 try:
                     self.client_objs[username].stop()
+                    self.logger.info(f'Cliente {username} desconectado')
                 except Exception as e:
-                    pass
+                    self.logger.error(f'Error al desconectar {username}: {e}')
                 del self.client_objs[username]
             if username in self.clients:
                 self.clients.remove(username)
 
     def get_user_dms(self, username: str):
-        """
-        Obtiene y limpia los DMs de un usuario
-        :param username: nombre del usuario
-        :return: lista de DMs
-        """
-        dm_key = f"dm_{username}"
+        dm_key = f'dm_{username}'
         dms = self.user_dms.get(dm_key, []).copy()
         if dm_key in self.user_dms:
             self.user_dms[dm_key].clear()

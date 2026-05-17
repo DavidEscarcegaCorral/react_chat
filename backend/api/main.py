@@ -1,40 +1,36 @@
-from fastapi import FastAPI
+﻿from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 from core.server_controller import ServerController
 from routes.server import router as server_router
 from routes.client import router as client_router
+from routes.auth import router as auth_router
+from utils.logger_config import get_logger
+from security.crypto_manager import initialize as init_crypto
 
-"""
-Modulo principal del sistema que permite ejecutar la api.
-"""
+logger = get_logger('api')
 
 def main():
-    """
-    Funcion principal que ejecuta la api a la que se conecta
-    el front, crea la app, establece restricciones de acceso
-    y establece las rutas del servidor y cliente.
-    """
     app = FastAPI()
     app.state.server = ServerController()
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=['*'],
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"]
+        allow_methods=['*'],
+        allow_headers=['*']
     )
-
-    # Rutas del Servidor
-    app.include_router(server_router, prefix="/server", tags=["Server"])
-
-    #Rutas del Cliente
-    app.include_router(client_router, prefix="/client", tags=["Client"])
-
+    
+    init_crypto()
+    logger.info('Servidor API iniciado - Crypto RSA inicializado')
+    
+    app.include_router(auth_router, prefix='/auth', tags=['Auth'])
+    app.include_router(server_router, prefix='/server', tags=['Server'])
+    app.include_router(client_router, prefix='/client', tags=['Client'])
+    
     return app
 
 app = main()
 
-if __name__ == "__main__":
-    # Unvicorn para desplegar la api en local
+if __name__ == '__main__':
     import uvicorn
-    uvicorn.run("api.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run('api.main:app', host='0.0.0.0', port=8000, reload=True)

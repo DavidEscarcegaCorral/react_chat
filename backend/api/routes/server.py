@@ -1,59 +1,52 @@
-from fastapi import APIRouter, Request
+﻿from fastapi import APIRouter, Request, HTTPException, Header
 from pydantic import BaseModel
+from typing import Optional
 
-"""
-Modulo que define los enpoints para controlar 
-la configuracion del servidor.
-"""
 router = APIRouter()
 
 class ProtocolData(BaseModel):
     protocol: str
 
-@router.post("/run")
-def run(req: Request, data: ProtocolData):
-    """
-    Funcion que pemite iniciar el servidor.
-    :param req: sirve para acceder a un servidor singleton
-    :param data: tipo de protocolo que se desea ejecutar
-    """
+def verify_token(authorization: Optional[str]):
+    if not authorization or not authorization.startswith('Bearer '):
+        raise HTTPException(status_code=401, detail='Token requerido')
+    from security.auth_manager import verify_token
+    token = authorization.replace('Bearer ', '')
+    valid, username = verify_token(token)
+    if not valid:
+        raise HTTPException(status_code=401, detail='Token inválido o expirado')
+    return username
+
+@router.post('/run')
+def run(req: Request, data: ProtocolData, authorization: Optional[str] = Header(None)):
+    verify_token(authorization)
     server = req.app.state.server
     return server.run(data.protocol)
 
-@router.post("/shutdown")
-def shutdown(req: Request):
-    """
-    Funcion que pemite detener el servidor.
-    :param req: sirve para acceder al un servidor singleton
-    """
+@router.post('/shutdown')
+def shutdown(req: Request, authorization: Optional[str] = Header(None)):
+    verify_token(authorization)
     server = req.app.state.server
     server.shutdown()
     server.clients.clear()
-    return {"status": "Servidor detenido"}
+    return {'status': 'Servidor detenido'}
 
-@router.delete("/clear")
-def clear(req: Request):
-    """
-    Funcion que pemite eliminar el historial de mensjaes.
-    :param req: sirve para acceder al un servidor singleton
-    """
+@router.delete('/clear')
+def clear(req: Request, authorization: Optional[str] = Header(None)):
+    verify_token(authorization)
     server = req.app.state.server
     server.history.clear()
-    return {"status": "Historial borrado"}
+    return {'status': 'Historial borrado'}
 
-@router.get("/status")
-def status(req: Request):
-    """
-    Funcion que pemite obtener el status del servidor.
-    :param req: sirve para acceder al un servidor singleton
-    :return: diccionario con el status del servidor
-    """
+@router.get('/status')
+def status(req: Request, authorization: Optional[str] = Header(None)):
+    verify_token(authorization)
     server = req.app.state.server
     return {
-        "running": server.is_running(),
-        "protocol": server.protocol,
-        "host": server.HOST,
-        "port": server.PORT,
-        "clients": list(server.clients),
-        "history_len": len(server.history)
+        'running': server.is_running(),
+        'protocol': server.protocol,
+        'host': server.HOST,
+        'port': server.PORT,
+        'clients': list(server.clients),
+        'history_len': len(server.history)
     }
