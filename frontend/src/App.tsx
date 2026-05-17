@@ -1,16 +1,35 @@
-import Hero from "./pages/Hero";
-import Chat from "./pages/Chat";
-import Server from "./pages/Server";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+﻿import Hero from './pages/Hero';
+import Chat from './pages/Chat';
+import Server from './pages/Server';
+import Login from './pages/Login';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import PrivateRoute from './components/PrivateRoute';
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<Hero />} />
-        <Route path="/chat" element={<Chat />} />
-        <Route path="/server" element={<Server />} />
-      </Routes>
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path='/' element={<Login />} />
+          <Route
+            path='/chat'
+            element={
+              <PrivateRoute>
+                <Chat />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path='/server'
+            element={
+              <PrivateRoute>
+                <Server />
+              </PrivateRoute>
+            }
+          />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
