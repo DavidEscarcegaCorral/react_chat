@@ -10,7 +10,7 @@ export default function Login() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  
+
   const { login, register } = useAuth();
   const navigate = useNavigate();
 
@@ -31,13 +31,13 @@ export default function Login() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    
+
     const usernameError = validateUsername(username);
     if (usernameError) {
       setError(usernameError);
       return;
     }
-    
+
     const passwordError = validatePassword(password);
     if (passwordError) {
       setError(passwordError);
@@ -52,7 +52,7 @@ export default function Login() {
     }
 
     setLoading(true);
-    
+
     try {
       if (isRegisterMode) {
         await register(username.trim(), password);
@@ -84,17 +84,17 @@ export default function Login() {
           <div className="py-4 pl-4 pr-5">Carlos Alberto Gonzalez Vega</div>
         </Card>
       </div>
-      
+
       <div className="flex-col gap-2 pt-32 pb-40 text-center">
         <Typography variant="h1" color="blue-gray" className="text-6xl">
           {isRegisterMode ? 'Crear Cuenta' : 'ING-CHAT'}
         </Typography>
         <Typography variant="lead" color="blue-gray" className="opacity-70 text-xl mt-2">
-          {isRegisterMode 
+          {isRegisterMode
             ? 'Ingresa un nombre de usuario y contrasena para registrarte'
-            : 'Ingresa tu nombre y contrasena para identificarte'}
+            : 'Ingresa tu nombre y contraseña para identificarte'}
         </Typography>
-        
+
         <form onSubmit={handleSubmit} className="mt-8">
           <div className="flex flex-col gap-4 w-80 mx-auto">
             <Input
@@ -121,18 +121,12 @@ export default function Login() {
               />
             )}
           </div>
-          
-          {error && (
-            <div className="mt-4 text-red-600 text-sm">{error}</div>
-          )}
-          
+
+          {error && <div className="mt-4 text-red-600 text-sm">{error}</div>}
+
           <div className="mx-auto mt-6 flex flex-col gap-3">
-            <Button 
-              type="submit" 
-              className="w-48" 
-              disabled={loading}
-            >
-              {loading ? 'Cargando...' : (isRegisterMode ? 'Registrarse' : 'Iniciar Sesion')}
+            <Button type="submit" className="w-48" disabled={loading}>
+              {loading ? 'Cargando...' : isRegisterMode ? 'Registrarse' : 'Iniciar Sesion'}
             </Button>
             <Button
               type="button"
@@ -149,9 +143,12 @@ export default function Login() {
           </div>
         </form>
       </div>
-      
+
       <div className="grid grid-cols-1 gap-4 self-end md:grid-cols-2 lg:grid-cols-4">
-        <Card shadow={false} className="animate-pulse-slow border border-blue-gray-50 py-4 px-5 shadow-xl shadow-transparent">
+        <Card
+          shadow={false}
+          className="animate-pulse-slow border border-blue-gray-50 py-4 px-5 shadow-xl shadow-transparent"
+        >
           <Typography variant="h5" color="blue-gray" className="mb-3 flex items-center gap-3">
             Autenticacion Segura
           </Typography>
@@ -159,7 +156,10 @@ export default function Login() {
             Sistema de login con verificacion de credenciales y gestion de sesiones seguras.
           </Typography>
         </Card>
-        <Card shadow={false} className="delay-100 animate-pulse-slow border border-blue-gray-50 py-4 px-5 shadow-xl shadow-transparent">
+        <Card
+          shadow={false}
+          className="delay-100 animate-pulse-slow border border-blue-gray-50 py-4 px-5 shadow-xl shadow-transparent"
+        >
           <Typography variant="h5" color="blue-gray" className="mb-3 flex items-center gap-3">
             Cifrado RSA
           </Typography>
@@ -167,7 +167,10 @@ export default function Login() {
             Comunicacion protegida con criptografia asimetrica RSA-2048.
           </Typography>
         </Card>
-        <Card shadow={false} className="delay-300 animate-pulse-slow border border-blue-gray-50 py-4 px-5 shadow-xl shadow-transparent">
+        <Card
+          shadow={false}
+          className="delay-300 animate-pulse-slow border border-blue-gray-50 py-4 px-5 shadow-xl shadow-transparent"
+        >
           <Typography variant="h5" color="blue-gray" className="mb-3 flex items-center gap-3">
             Registro de Eventos
           </Typography>
@@ -175,7 +178,10 @@ export default function Login() {
             Bitacora completa de actividades del sistema con logs detallados.
           </Typography>
         </Card>
-        <Card shadow={false} className="delay-500 animate-pulse-slow border border-blue-gray-50 py-4 px-5 shadow-xl shadow-transparent">
+        <Card
+          shadow={false}
+          className="delay-500 animate-pulse-slow border border-blue-gray-50 py-4 px-5 shadow-xl shadow-transparent"
+        >
           <Typography variant="h5" color="blue-gray" className="mb-3 flex items-center gap-3">
             Contrasenas Seguras
           </Typography>
