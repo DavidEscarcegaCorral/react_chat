@@ -1,11 +1,7 @@
-﻿const API_BASE = 'http://localhost:8000';
+const API_BASE = 'http://localhost:8000';
 
 function getToken(): string | null {
   return sessionStorage.getItem('token');
-}
-
-function getUsername(): string | null {
-  return sessionStorage.getItem('username');
 }
 
 export async function apiRequest<T>(
@@ -16,11 +12,11 @@ export async function apiRequest<T>(
   
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
-    ...(token ? { Authorization: Bearer  } : {}),
+    ...(token ? { Authorization: 'Bearer ' + token } : {}),
     ...options.headers,
   };
   
-  const response = await fetch(${API_BASE}, {
+  const response = await fetch(API_BASE + endpoint, {
     ...options,
     headers,
   });
@@ -130,9 +126,7 @@ export const clientApi = {
     }),
   
   dms: (username: string) =>
-    apiRequest<{ dms: string[] }>(/client/dms/, {
+    apiRequest<{ dms: string[] }>('/client/dms/' + username, {
       method: 'GET',
     }),
 };
-
-export { getUsername };

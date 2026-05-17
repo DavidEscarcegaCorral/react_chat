@@ -1,4 +1,4 @@
-﻿import Hero from './pages/Hero';
+import Hero from './pages/Hero';
 import Chat from './pages/Chat';
 import Server from './pages/Server';
 import Login from './pages/Login';

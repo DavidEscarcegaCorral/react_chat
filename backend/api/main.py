@@ -1,9 +1,9 @@
 ﻿from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 from core.server_controller import ServerController
-from routes.server import router as server_router
-from routes.client import router as client_router
-from routes.auth import router as auth_router
+from api.routes.server import router as server_router
+from api.routes.client import router as client_router
+from api.routes.auth import router as auth_router
 from utils.logger_config import get_logger
 from security.crypto_manager import initialize as init_crypto
 
