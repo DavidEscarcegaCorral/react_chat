@@ -22,17 +22,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const storedToken = sessionStorage.getItem('token');
-    const storedUsername = sessionStorage.getItem('username');
-    const storedPublicKey = sessionStorage.getItem('publicKey');
+    const verifyStoredSession = async () => {
+      const storedToken = sessionStorage.getItem('token');
+      const storedUsername = sessionStorage.getItem('username');
+      const storedPublicKey = sessionStorage.getItem('publicKey');
 
-    if (storedToken && storedUsername) {
-      setToken(storedToken);
-      setUsername(storedUsername);
-      setPublicKey(storedPublicKey);
-      setIsAuthenticated(true);
-    }
-    setLoading(false);
+      if (storedToken && storedUsername) {
+        // Verificar el token con el backend
+        try {
+          const response = await authApi.verify();
+          setToken(storedToken);
+          setUsername(storedUsername);
+          setPublicKey(storedPublicKey);
+          setIsAuthenticated(true);
+        } catch (error) {
+          console.warn('Token expirado o inválido, iniciando limpieza...');
+          sessionStorage.removeItem('token');
+          sessionStorage.removeItem('username');
+          sessionStorage.removeItem('publicKey');
+          setIsAuthenticated(false);
+        }
+      }
+      setLoading(false);
+    };
+
+    verifyStoredSession();
   }, []);
 
   const login = async (user: string, pass: string) => {
