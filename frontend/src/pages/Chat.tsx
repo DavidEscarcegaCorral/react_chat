@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { clientApi } from '../utils/api';
+import { clientApi, serverApi } from '../utils/api';
 import { encryptMessage } from '../utils/crypto';
 import { Button } from '@material-tailwind/react';
 
@@ -53,12 +53,14 @@ export default function Chat() {
   const [dmMessages, setDmMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [connected, setConnected] = useState(false);
   const [availableClients, setAvailableClients] = useState<string[]>([]);
   const [selectedRecipient, setSelectedRecipient] = useState('all');
   const currentUsername = username || 'Anon';
   const bottomRef = useRef<HTMLDivElement>(null);
   const lastHistoryLength = useRef(0);
   const dmIdCounter = useRef(0);
+  const connectedRef = useRef(false);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -71,11 +73,31 @@ export default function Chat() {
         setMessages(formatMessages(data.history, currentUsername));
         lastHistoryLength.current = data.history.length;
       }
-      setError('');
     } catch (err: unknown) {
       console.error('Error al cargar historial:', err);
       if (err instanceof Error && (err.message.includes('401') || err.message.includes('expirada'))) {
         await logout();
+      }
+    }
+  }
+
+  async function connectClient() {
+    try {
+      await serverApi.status();
+      try {
+        await clientApi.login(currentUsername);
+        connectedRef.current = true;
+        setConnected(true);
+        setError('');
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Error al conectar';
+        if (!connectedRef.current) {
+          setError(msg);
+        }
+      }
+    } catch {
+      if (!connectedRef.current) {
+        setError('El servidor de chat no está activo. Ve a la página Servidor para iniciarlo.');
       }
     }
   }
@@ -129,6 +151,7 @@ export default function Chat() {
   }
 
   useEffect(() => {
+    connectClient();
     loadHistory();
     loadClients();
     loadDMs();
@@ -136,9 +159,21 @@ export default function Chat() {
       loadHistory();
       loadClients();
       loadDMs();
+      if (!connectedRef.current) {
+        connectClient();
+      }
     }, 800);
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      clientApi.logout(currentUsername).catch(() => {});
+    };
   }, []);
+
+  useEffect(() => {
+    if (connected) {
+      setError('');
+    }
+  }, [connected]);
 
   async function handleLogout() {
     try {

@@ -39,7 +39,8 @@ def rsa_encrypt(data: bytes, public_key_pem: str) -> bytes:
         data,
         rsa_padding.OAEP(
             mgf=rsa_padding.MGF1(algorithm=hashes.SHA256()),
-            algorithm=hashes.SHA256()
+            algorithm=hashes.SHA256(),
+            label=None
         )
     )
 
@@ -49,7 +50,8 @@ def rsa_decrypt(encrypted_data: bytes, private_key_pem: str) -> bytes:
         encrypted_data,
         rsa_padding.OAEP(
             mgf=rsa_padding.MGF1(algorithm=hashes.SHA256()),
-            algorithm=hashes.SHA256()
+            algorithm=hashes.SHA256(),
+            label=None
         )
     )
 

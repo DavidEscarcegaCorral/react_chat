@@ -38,14 +38,14 @@ def login(req: Request, data: LoginData, authorization: Optional[str] = Header(N
     server = req.app.state.server
     
     if not server.is_running():
-        return {'error': 'No hay servidor corriendo. Inicia el servidor primero.'}
+        raise HTTPException(status_code=503, detail='No hay servidor corriendo. Inicia el servidor primero.')
     
     if data.username in server.clients:
-        return {'error': 'El usuario ya existe'}
+        raise HTTPException(status_code=409, detail='El usuario ya existe')
     
     client = server.create_client(data.username)
     if client is None:
-        return {'error': 'No se pudo crear el cliente'}
+        raise HTTPException(status_code=500, detail='No se pudo crear el cliente')
     return {'status': 'OK', 'username': data.username}
 
 @router.post('/logout')

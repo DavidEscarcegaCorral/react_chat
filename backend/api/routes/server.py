@@ -10,7 +10,7 @@ ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
 class ProtocolData(BaseModel):
     protocol: str
 
-def verify_admin(authorization: Optional[str]):
+def verify_token(authorization: Optional[str]):
     if not authorization or not authorization.startswith('Bearer '):
         raise HTTPException(status_code=401, detail='Token requerido')
     from security.auth_manager import verify_token
@@ -18,6 +18,10 @@ def verify_admin(authorization: Optional[str]):
     valid, username = verify_token(token)
     if not valid:
         raise HTTPException(status_code=401, detail='Token inválido o expirado')
+    return username
+
+def verify_admin(authorization: Optional[str]):
+    username = verify_token(authorization)
     if username != ADMIN_USERNAME:
         raise HTTPException(status_code=403, detail='Acceso denegado: se requieren permisos de administrador')
     return username
@@ -44,7 +48,7 @@ def clear(req: Request, authorization: Optional[str] = Header(None)):
 
 @router.get('/status')
 def status(req: Request, authorization: Optional[str] = Header(None)):
-    verify_admin(authorization)
+    verify_token(authorization)
     server = req.app.state.server
     return {
         'running': server.is_running(),

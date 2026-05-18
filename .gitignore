@@ -70,6 +70,9 @@ coverage-final.json
 *.swp
 *.swo
 
+# Claves RSA
+backend/data/*.pem
+
 # Secret Files
 .env
 .env.local

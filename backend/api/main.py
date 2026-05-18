@@ -14,8 +14,7 @@ load_dotenv()
 logger = get_logger('api')
 
 def get_cors_origins():
-    origins = os.environ.get('CORS_ORIGINS', 'http://localhost:5173,http://localhost:3000')
-    return [o.strip() for o in origins.split(',') if o.strip()]
+    return [o.strip() for o in os.environ.get('CORS_ORIGINS', '').split(',') if o.strip()]
 
 def main():
     app = FastAPI()
@@ -23,6 +22,7 @@ def main():
     app.add_middleware(
         CORSMiddleware,
         allow_origins=get_cors_origins(),
+        allow_origin_regex=r'https?://localhost(:\d+)?',
         allow_credentials=True,
         allow_methods=['*'],
         allow_headers=['*']

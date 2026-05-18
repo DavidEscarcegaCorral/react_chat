@@ -60,8 +60,10 @@ export default function Login() {
         setError('');
         alert('Registro exitoso. Ahora puedes iniciar sesion.');
       } else {
-        await login(username.trim(), password);
-        navigate('/chat');
+        const trimmed = username.trim();
+        await login(trimmed, password);
+        const adminUser = import.meta.env.VITE_ADMIN_USERNAME || 'admin';
+        navigate(trimmed === adminUser ? '/server' : '/chat');
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Error de conexion';
