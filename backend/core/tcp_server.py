@@ -12,10 +12,12 @@ class TCPServer(threading.Thread):
         self.controller = controller
         self.clients = {}
         self.running = True
+        self.ready = threading.Event()
         self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.server.bind((ip, port))
         self.server.listen()
+        self.ready.set()
         self.logger.info(f'TCP Server escuchando en {ip}:{port}')
 
     def run(self):

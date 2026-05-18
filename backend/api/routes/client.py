@@ -22,6 +22,16 @@ def verify_token(authorization: Optional[str]):
         raise HTTPException(status_code=401, detail='Token inválido o expirado')
     return username
 
+def decrypt_payload(encrypted: str) -> str:
+    if '|' not in encrypted:
+        return encrypted
+    from security.message_encryptor import decrypt_message
+    from security.crypto_manager import get_server_private_key
+    try:
+        return decrypt_message(encrypted, get_server_private_key())
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f'Error al descifrar mensaje: {str(e)}')
+
 @router.post('/login')
 def login(req: Request, data: LoginData, authorization: Optional[str] = Header(None)):
     verify_token(authorization)
@@ -56,10 +66,11 @@ def send(req: Request, data: MessageData, authorization: Optional[str] = Header(
     if data.recipient != 'all' and data.recipient not in server.clients:
         return {'error': f'El usuario \'{data.recipient}\' no existe o no está conectado'}
     
+    plaintext = decrypt_payload(data.message)
     client = server.client_objs[data.username]
     
     try:
-        success = client.send(data.message, data.recipient)
+        success = client.send(plaintext, data.recipient)
         if success:
             return {'status': 'Mensaje enviado', 'recipient': data.recipient}
         else:

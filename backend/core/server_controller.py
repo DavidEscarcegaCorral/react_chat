@@ -4,6 +4,8 @@ from clients.tcp_client import TCPClient
 from clients.udp_client import UDPClient
 import threading
 
+MAX_HISTORY = 1000
+
 class ServerController:
     def __init__(self):
         from utils.logger_config import get_logger
@@ -37,9 +39,8 @@ class ServerController:
                 self.protocol = protocol
                 self.server.start()
                 
-                import time
-                time.sleep(0.5)
-                if not self.server.running:
+                ready = self.server.ready.wait(timeout=2)
+                if not ready or not self.server.running:
                     self.logger.error(f'El servidor {protocol.upper()} no pudo iniciar')
                     self.server = None
                     self.protocol = None
@@ -67,6 +68,7 @@ class ServerController:
                     self.logger.error(f'Error al desconectar cliente {username}: {e}')
             
             self.client_objs.clear()
+            self.clients.clear()
             
             try:
                 self.server.stop()
@@ -106,10 +108,6 @@ class ServerController:
             self.client_objs[username] = client
             client.start()
             
-            if self.protocol == 'tcp':
-                import time
-                time.sleep(0.5)
-            
             self.logger.info(f'Cliente {username} creado exitosamente')
             return client
 
@@ -125,6 +123,12 @@ class ServerController:
                 del self.client_objs[username]
             if username in self.clients:
                 self.clients.remove(username)
+
+    def add_history(self, msg: str):
+        with self._lock:
+            self.history.append(msg)
+            if len(self.history) > MAX_HISTORY:
+                self.history.pop(0)
 
     def get_user_dms(self, username: str):
         dm_key = f'dm_{username}'

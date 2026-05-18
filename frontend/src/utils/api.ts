@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 function getToken(): string | null {
   return sessionStorage.getItem('token');
@@ -74,10 +74,10 @@ export const serverApi = {
     }),
   
   shutdown: () =>
-    apiRequest<{ status: string }>('/server/shutdown', {
+    apiRequest<{ status: string; error?: string }>('/server/shutdown', {
       method: 'POST',
     }),
-  
+
   status: () =>
     apiRequest<{
       running: boolean;
@@ -89,9 +89,9 @@ export const serverApi = {
     }>('/server/status', {
       method: 'GET',
     }),
-  
+
   clear: () =>
-    apiRequest<{ status: string }>('/server/clear', {
+    apiRequest<{ status: string; error?: string }>('/server/clear', {
       method: 'DELETE',
     }),
 };

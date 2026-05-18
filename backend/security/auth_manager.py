@@ -13,8 +13,8 @@ DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
 USERS_FILE = os.path.join(DATA_DIR, 'users.json')
 TOKEN_BLACKLIST = set()
 
-SECRET_KEY = secrets.token_hex(32)
-TOKEN_EXPIRY_HOURS = 24
+SECRET_KEY = os.environ.get('JWT_SECRET_KEY', secrets.token_hex(32))
+TOKEN_EXPIRY_HOURS = int(os.environ.get('JWT_EXPIRY_HOURS', '24'))
 
 def _load_users() -> Dict[str, str]:
     if not os.path.exists(USERS_FILE):

@@ -15,11 +15,13 @@ class UDPServer(threading.Thread):
         self.clients = {}
         self.username_to_addr = {}
         self.init_error = None
+        self.ready = threading.Event()
         try:
             self.server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.server.bind((ip, port))
             self.running = True
+            self.ready.set()
             self.logger.info(f'UDP Server escuchando en {ip}:{port}')
         except Exception as e:
             self.init_error = str(e)

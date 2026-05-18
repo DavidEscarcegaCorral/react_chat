@@ -1,10 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { clientApi } from '../utils/api';
+import { encryptMessage } from '../utils/crypto';
 import { Button } from '@material-tailwind/react';
 
-function formatMessages(history: string[], currentUsername: string) {
-  const formatted = history
+interface Message {
+  id: string;
+  user: string;
+  text: string;
+  timestamp: Date | null;
+  isDM: boolean;
+  dmRecipient: string | null;
+  shouldShow: boolean;
+  isMyMessage: boolean;
+}
+
+function formatMessages(history: string[], currentUsername: string): Message[] {
+  const formatted: Message[] = history
     .map((raw, index) => {
       const parts = raw.includes('|') ? raw.split('|') : [raw, undefined];
       const msg = parts[0];
@@ -30,15 +42,15 @@ function formatMessages(history: string[], currentUsername: string) {
         isMyMessage: isMyMessage,
       };
     })
-    .filter((m) => m !== null);
+    .filter((m): m is Message => m !== null);
   return formatted;
 }
 
 export default function Chat() {
-  const { username, logout } = useAuth();
+  const { username, logout, publicKey } = useAuth();
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState<any[]>([]);
-  const [dmMessages, setDmMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [dmMessages, setDmMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [availableClients, setAvailableClients] = useState<string[]>([]);
@@ -60,9 +72,9 @@ export default function Chat() {
         lastHistoryLength.current = data.history.length;
       }
       setError('');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error al cargar historial:', err);
-      if (err.message && (err.message.includes('401') || err.message.includes('expirada'))) {
+      if (err instanceof Error && (err.message.includes('401') || err.message.includes('expirada'))) {
         await logout();
       }
     }
@@ -82,7 +94,7 @@ export default function Chat() {
       const data = await clientApi.dms(currentUsername);
 
       if (data.dms && data.dms.length > 0) {
-        const newDMs = data.dms
+        const newDMs: Message[] = data.dms
           .map((dmRaw: string) => {
             const parts = dmRaw.includes('|') ? dmRaw.split('|') : [dmRaw, undefined];
             const msg = parts[0];
@@ -105,7 +117,7 @@ export default function Chat() {
               isMyMessage: false,
             };
           })
-          .filter((dm: any) => dm !== null);
+          .filter((dm): dm is Message => dm !== null);
 
         if (newDMs.length > 0) {
           setDmMessages((prev) => [...prev, ...newDMs]);
@@ -145,7 +157,11 @@ export default function Chat() {
     const isDM = selectedRecipient !== 'all';
 
     try {
-      const data = await clientApi.send(message.trim(), currentUsername, selectedRecipient);
+      let payload = message.trim();
+      if (publicKey) {
+        payload = await encryptMessage(payload, publicKey);
+      }
+      const data = await clientApi.send(payload, currentUsername, selectedRecipient);
       if (data.error) {
         setError(data.error);
         if (data.error.includes('401') || data.error.includes('expirada')) {
@@ -169,9 +185,9 @@ export default function Chat() {
         setMessage('');
         setTimeout(loadHistory, 100);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error enviando mensaje:', err);
-      setError(err.message);
+      setError(err instanceof Error ? err.message : 'Error desconocido');
     } finally {
       setLoading(false);
     }

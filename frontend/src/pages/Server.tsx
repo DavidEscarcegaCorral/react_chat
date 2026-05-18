@@ -9,7 +9,14 @@ export default function Server() {
   const { username, logout } = useAuth();
   const [protocol, setProtocol] = useState('');
   const [loading, setLoading] = useState(false);
-  const [serverStatus, setServerStatus] = useState<any>(null);
+  const [serverStatus, setServerStatus] = useState<{
+    running: boolean;
+    protocol: string | null;
+    host: string;
+    port: number;
+    clients: string[];
+    history_len: number;
+  } | null>(null);
   const [statusLoading, setStatusLoading] = useState(false);
 
   async function checkServerStatus() {
@@ -18,9 +25,9 @@ export default function Server() {
       const data = await serverApi.status();
       setServerStatus(data);
       setLoading(data.running);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error obteniendo estado del servidor:', err);
-      if (err.message && (err.message.includes('401') || err.message.includes('expirada'))) {
+      if (err instanceof Error && (err.message.includes('401') || err.message.includes('expirada'))) {
         await logout();
       }
     } finally {
@@ -56,8 +63,8 @@ export default function Server() {
         alert('Servidor ' + protocol.toUpperCase() + ' iniciado correctamente');
         await checkServerStatus();
       }
-    } catch (err: any) {
-      alert('Error de conexion con el servidor: ' + err.message);
+    } catch (err: unknown) {
+      alert('Error de conexion con el servidor: ' + (err instanceof Error ? err.message : 'Error desconocido'));
       setLoading(false);
     }
   }
@@ -72,8 +79,8 @@ export default function Server() {
         alert('Servidor detenido correctamente');
         await checkServerStatus();
       }
-    } catch (err: any) {
-      alert('Error de conexion con el servidor: ' + err.message);
+    } catch (err: unknown) {
+      alert('Error de conexion con el servidor: ' + (err instanceof Error ? err.message : 'Error desconocido'));
     }
   }
 
@@ -93,8 +100,8 @@ export default function Server() {
         alert('Historial de mensajes borrado correctamente');
         await checkServerStatus();
       }
-    } catch (err: any) {
-      alert('Error de conexion con el servidor: ' + err.message);
+    } catch (err: unknown) {
+      alert('Error de conexion con el servidor: ' + (err instanceof Error ? err.message : 'Error desconocido'));
     }
   }
 
