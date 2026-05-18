@@ -99,12 +99,7 @@ export default function Server() {
   }
 
   async function handleLogout() {
-    try {
-      await serverApi.shutdown();
-    } catch {
-    } finally {
-      await logout();
-    }
+    await logout();
   }
 
   return (

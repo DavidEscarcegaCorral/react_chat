@@ -28,8 +28,8 @@ class UDPServer(threading.Thread):
             if self.server:
                 try:
                     self.server.close()
-                except:
-                    pass
+                except Exception as close_err:
+                    self.logger.error(f'Error cerrando UDP server: {close_err}')
                 self.server = None
 
     def run(self):
@@ -49,7 +49,7 @@ class UDPServer(threading.Thread):
                 try:
                     decoded = data.decode()
                     
-                    if decoded.startswith('Conectado:'):
+                    if decoded.startswith('CONECTADO:'):
                         username = decoded.split(':', 1)[1]
                         self.clients[addr] = username
                         self.username_to_addr[username] = addr
@@ -64,7 +64,7 @@ class UDPServer(threading.Thread):
                         msg_content = decoded[4:]
                         self.logger.info(f'Broadcast: {msg_content}')
                         
-                        self.controller.history.append(msg_content)
+                        self.controller.add_history(msg_content)
                         
                         for client_addr in list(self.clients.keys()):
                             if client_addr != addr:
@@ -123,8 +123,8 @@ class UDPServer(threading.Thread):
                 if username in self.username_to_addr:
                     del self.username_to_addr[username]
                 self.logger.info(f'Cliente removido: {username}')
-        except:
-            pass
+        except Exception as e:
+            self.logger.error(f'Error removiendo cliente UDP: {e}')
 
     def stop(self):
         self.logger.info('Deteniendo UDP Server')

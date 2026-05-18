@@ -36,7 +36,7 @@ class TCPServer(threading.Thread):
                 msg_content = decoded[4:]
                 self.logger.info(f'Broadcast: {msg_content}')
                 
-                self.controller.history.append(msg_content)
+                self.controller.add_history(msg_content)
                 
                 for c in list(self.clients.keys()):
                     if c != source_sock:
@@ -89,8 +89,8 @@ class TCPServer(threading.Thread):
                 del self.clients[conn]
                 self.logger.info(f'Cliente desconectado: {username}')
             conn.close()
-        except:
-            pass
+        except Exception as e:
+            self.logger.error(f'Error al remover cliente: {e}')
 
     def handle_client(self, conn, addr):
         username = None
@@ -125,18 +125,18 @@ class TCPServer(threading.Thread):
         self.running = False
         try:
             self.server.close()
-        except:
-            pass
+        except Exception as e:
+            self.logger.error(f'Error cerrando server socket: {e}')
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect((self.ip, self.port))
             s.close()
-        except:
-            pass
+        except Exception as e:
+            self.logger.error(f'Error cerrando conexión dummy: {e}')
         for c in list(self.clients.keys()):
             try:
                 c.close()
-            except:
-                pass
+            except Exception as e:
+                self.logger.error(f'Error cerrando socket cliente: {e}')
         self.clients.clear()
         self.logger.info('TCP Server detenido')

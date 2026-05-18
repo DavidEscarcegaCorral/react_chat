@@ -22,9 +22,11 @@ class UDPClient:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self.sock.bind(('', 0))
             local_port = self.sock.getsockname()[1]
+            register_msg = f'CONECTADO:{self.username}'.encode()
+            self.sock.sendto(register_msg, (self.host, self.port))
             self.recv_thread = threading.Thread(target=self._recv_loop, daemon=True)
             self.recv_thread.start()
-            self.logger.info(f'Cliente UDP {username} iniciado en puerto {local_port}')
+            self.logger.info(f'Cliente UDP {self.username} iniciado en puerto {local_port}')
         except Exception as e:
             self.logger.error(f'Error al iniciar cliente UDP: {e}')
 
@@ -77,5 +79,5 @@ class UDPClient:
         if self.sock:
             try:
                 self.sock.close()
-            except:
-                pass
+            except Exception as e:
+                self.logger.error(f'Error cerrando socket UDP: {e}')

@@ -61,8 +61,8 @@ class TCPClient:
         try:
             if self.sock:
                 self.sock.close()
-        except:
-            pass
+        except Exception as e:
+            self.logger.error(f'Error cerrando socket en recv_loop: {e}')
         self.sock = None
 
     def send(self, message: str, recipient: str = 'all'):
@@ -90,5 +90,5 @@ class TCPClient:
         try:
             if self.sock:
                 self.sock.close()
-        except:
-            pass
+        except Exception as e:
+            self.logger.error(f'Error cerrando socket en stop: {e}')
