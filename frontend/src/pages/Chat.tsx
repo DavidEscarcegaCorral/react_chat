@@ -40,7 +40,7 @@ function formatMessages(history: string[], currentUsername: string): Message[] {
         dmRecipient: null,
         shouldShow: true,
         isMyMessage: isMyMessage,
-      };
+      } as Message;
     })
     .filter((m): m is Message => m !== null);
   return formatted;
@@ -115,7 +115,7 @@ export default function Chat() {
               dmRecipient: currentUsername,
               shouldShow: true,
               isMyMessage: false,
-            };
+            } as Message;
           })
           .filter((dm): dm is Message => dm !== null);
 
