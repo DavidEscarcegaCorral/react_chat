@@ -79,26 +79,34 @@ export default function Chat() {
   }
 
   useEffect(() => {
+    let es: EventSource | null = null;
+    let cancelled = false;
+
     connectClient();
 
     const tokenVal = token || sessionStorage.getItem('token');
 
     clientApi.history().then((data) => {
-      setMessages(
-        data.history
-          .map((raw: string, i: number) => parseHistoryLine(raw, msgCounter.current++, currentUsername))
-          .filter((m: Message | null): m is Message => m !== null)
-      );
+      if (!cancelled) {
+        setMessages(
+          data.history
+            .map((raw: string) => parseHistoryLine(raw, msgCounter.current++, currentUsername))
+            .filter((m: Message | null): m is Message => m !== null)
+        );
+      }
     }).catch(() => {});
 
     clientApi.clients().then((data) => {
-      setAvailableClients(data.clients.filter((c: string) => c !== currentUsername));
+      if (!cancelled) {
+        setAvailableClients(data.clients.filter((c: string) => c !== currentUsername));
+      }
     }).catch(() => {});
 
     if (tokenVal) {
-      const es = new EventSource(`${API_BASE}/client/events?token=${tokenVal}`);
+      es = new EventSource(`${API_BASE}/client/events?token=${tokenVal}`);
 
       es.addEventListener('broadcast', (e: MessageEvent) => {
+        if (cancelled) return;
         try {
           const data = JSON.parse(e.data);
           const parsed = parseHistoryLine(data.message, msgCounter.current++, currentUsername);
@@ -111,6 +119,7 @@ export default function Chat() {
       });
 
       es.addEventListener('dm', (e: MessageEvent) => {
+        if (cancelled) return;
         try {
           const data = JSON.parse(e.data);
           const sender = data.from_user;
@@ -137,6 +146,7 @@ export default function Chat() {
       });
 
       es.addEventListener('clients', (e: MessageEvent) => {
+        if (cancelled) return;
         try {
           const data = JSON.parse(e.data);
           setAvailableClients((data.clients || []).filter((c: string) => c !== currentUsername));
@@ -149,6 +159,11 @@ export default function Chat() {
     }
 
     return () => {
+      cancelled = true;
+      if (es) {
+        es.close();
+        es = null;
+      }
       clientApi.logout(currentUsername).catch(() => {});
     };
   }, []);

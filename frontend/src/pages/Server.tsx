@@ -25,13 +25,18 @@ export default function Server() {
       setLoading(data.running);
     } catch (err: unknown) {
       console.error('Error obteniendo estado del servidor:', err);
-      if (err instanceof Error && (err.message.includes('401') || err.message.includes('expirada'))) {
+      if (
+        err instanceof Error &&
+        (err.message.includes('401') || err.message.includes('expirada'))
+      ) {
         await logout();
       }
     }
   }
 
   useEffect(() => {
+    let cancelled = false;
+
     checkServerStatus();
 
     const tokenVal = token || sessionStorage.getItem('token');
@@ -40,6 +45,7 @@ export default function Server() {
     const es = new EventSource(`${API_BASE}/server/events?token=${tokenVal}`);
 
     es.addEventListener('server_status', (e: MessageEvent) => {
+      if (cancelled) return;
       try {
         const data = JSON.parse(e.data);
         setServerStatus((prev) => ({
@@ -57,21 +63,24 @@ export default function Server() {
     });
 
     es.addEventListener('clients', (e: MessageEvent) => {
+      if (cancelled) return;
       try {
         const data = JSON.parse(e.data);
-        setServerStatus((prev) => prev ? { ...prev, clients: data.clients || [] } : prev);
+        setServerStatus((prev) => (prev ? { ...prev, clients: data.clients || [] } : prev));
       } catch (err) {
         console.error('Error parsing clients event:', err);
       }
     });
 
     es.addEventListener('broadcast', (e: MessageEvent) => {
-      setServerStatus((prev) => prev ? { ...prev, history_len: prev.history_len + 1 } : prev);
+      if (cancelled) return;
+      setServerStatus((prev) => (prev ? { ...prev, history_len: prev.history_len + 1 } : prev));
     });
 
     es.onerror = () => {};
 
     return () => {
+      cancelled = true;
       es.close();
     };
   }, []);
@@ -99,7 +108,10 @@ export default function Server() {
         await checkServerStatus();
       }
     } catch (err: unknown) {
-      alert('Error de conexion con el servidor: ' + (err instanceof Error ? err.message : 'Error desconocido'));
+      alert(
+        'Error de conexion con el servidor: ' +
+          (err instanceof Error ? err.message : 'Error desconocido'),
+      );
       setLoading(false);
     }
   }
@@ -115,7 +127,10 @@ export default function Server() {
         await checkServerStatus();
       }
     } catch (err: unknown) {
-      alert('Error de conexion con el servidor: ' + (err instanceof Error ? err.message : 'Error desconocido'));
+      alert(
+        'Error de conexion con el servidor: ' +
+          (err instanceof Error ? err.message : 'Error desconocido'),
+      );
     }
   }
 
@@ -136,7 +151,10 @@ export default function Server() {
         await checkServerStatus();
       }
     } catch (err: unknown) {
-      alert('Error de conexion con el servidor: ' + (err instanceof Error ? err.message : 'Error desconocido'));
+      alert(
+        'Error de conexion con el servidor: ' +
+          (err instanceof Error ? err.message : 'Error desconocido'),
+      );
     }
   }
 
