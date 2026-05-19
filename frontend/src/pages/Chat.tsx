@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { clientApi, serverApi, API_BASE } from '../utils/api';
 import { encryptMessage } from '../utils/crypto';
 import { Button } from '@material-tailwind/react';
+import ThemeToggle from '../components/ThemeToggle';
 
 interface Message {
   id: string;
@@ -227,15 +228,16 @@ export default function Chat() {
   }
 
   return (
-    <div className="mx-auto w-[40%] mt-20 flex flex-col gap-4">
+    <div className="mx-auto w-[40%] mt-20 flex flex-col gap-4 dark:text-gray-100 transition-colors">
+      <ThemeToggle />
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+        <div className="bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-300 px-4 py-3 rounded relative">
           <strong className="font-bold">Error: </strong>
           <span className="block sm:inline">{error}</span>
         </div>
       )}
 
-      <div className="flex justify-between items-center px-4 py-3 rounded bg-white/70 shadow">
+      <div className="flex justify-between items-center px-4 py-3 rounded bg-white/70 dark:bg-gray-800/70 shadow">
         <p className="text-sm">
           <strong>Usuario:</strong> {currentUsername}
         </p>
@@ -244,9 +246,9 @@ export default function Chat() {
         </Button>
       </div>
 
-      <div className="flex flex-col gap-3 p-4 h-[60vh] overflow-y-auto bg-white/50">
+      <div className="flex flex-col gap-3 p-4 h-[60vh] overflow-y-auto bg-white/50 dark:bg-gray-800/50">
         {messages.length === 0 && dmMessages.length === 0 ? (
-          <div className="text-center text-gray-500 mt-10">
+          <div className="text-center text-gray-500 dark:text-gray-400 mt-10">
             <p>No hay mensajes aun</p>
           </div>
         ) : (
@@ -263,9 +265,9 @@ export default function Chat() {
                   className={
                     'max-w-[70%] px-4 py-2 rounded-2xl shadow break-words ' +
                     (m.isMyMessage
-                      ? 'self-end bg-blue-600 text-white'
-                      : 'self-start bg-white border text-gray-900') +
-                    (m.isDM ? ' border-2 border-gray-400' : '')
+                      ? 'self-end bg-blue-600 dark:bg-blue-700 text-white'
+                      : 'self-start bg-white dark:bg-gray-800 border dark:border-gray-600 text-gray-900 dark:text-gray-100') +
+                    (m.isDM ? ' border-2 border-gray-400 dark:border-gray-500' : '')
                   }
                 >
                   <div className="flex items-center gap-2">
@@ -275,8 +277,8 @@ export default function Chat() {
                         className={
                           'text-xs px-2 py-0.5 rounded ' +
                           (m.isMyMessage
-                            ? 'bg-gray-300 text-gray-900'
-                            : 'bg-gray-200 text-gray-800')
+                            ? 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-gray-200'
+                            : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200')
                         }
                       >
                         {m.isMyMessage ? m.dmRecipient : 'Privado'}
@@ -297,13 +299,13 @@ export default function Chat() {
         <div ref={bottomRef}></div>
       </div>
 
-      <div className="flex flex-col gap-2 bg-white/70 backdrop-blur p-3 rounded-xl shadow-xl">
-        <div className="flex items-center gap-2 pb-2 border-b">
-          <label className="text-sm font-medium text-gray-700">Enviar a:</label>
+      <div className="flex flex-col gap-2 bg-white/70 dark:bg-gray-800/70 backdrop-blur p-3 rounded-xl shadow-xl">
+        <div className="flex items-center gap-2 pb-2 border-b dark:border-gray-600">
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Enviar a:</label>
           <select
             value={selectedRecipient}
             onChange={(e) => setSelectedRecipient(e.target.value)}
-            className="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-gray-100"
           >
             <option value="all">Todos</option>
             {availableClients.map((client) => (
@@ -325,7 +327,7 @@ export default function Chat() {
             }
             disabled={loading}
             maxLength={500}
-            className="flex-1 min-h-full px-3 py-2 text-black border-none outline-none resize-none focus:outline-none"
+            className="flex-1 min-h-full px-3 py-2 text-black dark:text-gray-100 border-none outline-none resize-none focus:outline-none dark:bg-transparent"
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -338,7 +340,7 @@ export default function Chat() {
           <button
             onClick={handleSend}
             disabled={loading || !message.trim()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {loading ? (
               <svg

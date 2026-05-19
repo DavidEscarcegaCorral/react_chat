@@ -4,6 +4,7 @@ import { Button } from '@material-tailwind/react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { serverApi, API_BASE } from '../utils/api';
+import ThemeToggle from '../components/ThemeToggle';
 
 export default function Server() {
   const { username, logout, token } = useAuth();
@@ -163,15 +164,16 @@ export default function Server() {
   }
 
   return (
-    <div className="relative grid min-h-[100vh] w-screen p-8">
+    <div className="relative grid min-h-[100vh] w-screen p-8 dark:bg-gray-900 transition-colors">
+      <ThemeToggle />
       <div className="flex flex-col-reverse items-center justify-between gap-4 self-start md:flex-row">
-        <Card className="h-max w-max flex-row items-center border border-blue-gray-50 py-4 px-5 shadow-lg shadow-blue-gray-900/5">
-          <code className="text-blue-gray-900">
+        <Card className="h-max w-max flex-row items-center border border-blue-gray-50 dark:border-gray-700 py-4 px-5 shadow-lg shadow-blue-gray-900/5 dark:shadow-black/30 bg-white dark:bg-gray-800">
+          <code className="text-blue-gray-900 dark:text-gray-100">
             Redes <strong>8:30 Martes/Jueves</strong>
           </code>
         </Card>
         <div className="flex items-center gap-4">
-          <Card className="h-max w-max border border-blue-gray-50 font-semibold text-blue-gray-900 shadow-lg shadow-blue-gray-900/5">
+          <Card className="h-max w-max border border-blue-gray-50 dark:border-gray-700 font-semibold text-blue-gray-900 dark:text-gray-100 shadow-lg shadow-blue-gray-900/5 dark:shadow-black/30 bg-white dark:bg-gray-800">
             <div className="py-4 pl-4 pr-5">{username}</div>
           </Card>
           <Button size="sm" color="red" variant="outlined" onClick={handleLogout}>
@@ -181,39 +183,39 @@ export default function Server() {
       </div>
 
       <div className="flex-col gap-2 pt-16 text-center">
-        <Typography variant="h1" color="blue-gray" className="text-8xl">
+        <Typography variant="h1" color="blue-gray" className="text-8xl dark:text-gray-100">
           Welcome Admin
         </Typography>
-        <Typography variant="lead" color="blue-gray" className="opacity-70 text-2xl mt-4">
+        <Typography variant="lead" color="blue-gray" className="opacity-70 text-2xl mt-4 dark:text-gray-100">
           Inicia el servidor o cambia la configuracion desde aqui.
         </Typography>
 
         {serverStatus && (
           <div className="mt-6 mx-auto w-fit">
-            <Card className="p-4 bg-gray-50">
+            <Card className="p-4 bg-gray-50 dark:bg-gray-800">
               <div className="flex items-center gap-2">
                 <div
                   className={
                     'w-3 h-3 rounded-full ' + (serverStatus.running ? 'bg-green-500' : 'bg-red-500')
                   }
                 ></div>
-                <Typography className="font-semibold">
+                <Typography className="font-semibold dark:text-gray-100">
                   Estado: {serverStatus.running ? 'Activo' : 'Detenido'}
                 </Typography>
               </div>
               {serverStatus.running && (
                 <>
-                  <Typography className="text-sm mt-2">
+                  <Typography className="text-sm mt-2 dark:text-gray-300">
                     Protocolo:{' '}
                     <strong>
                       {serverStatus.protocol ? serverStatus.protocol.toUpperCase() : ''}
                     </strong>
                   </Typography>
-                  <Typography className="text-sm">
+                  <Typography className="text-sm dark:text-gray-300">
                     Clientes:{' '}
                     <strong>{serverStatus.clients ? serverStatus.clients.length : 0}</strong>
                   </Typography>
-                  <Typography className="text-sm">
+                  <Typography className="text-sm dark:text-gray-300">
                     Mensajes:{' '}
                     <strong>{serverStatus.history_len ? serverStatus.history_len : 0}</strong>
                   </Typography>
@@ -231,6 +233,7 @@ export default function Server() {
                 value={protocol}
                 onChange={(value?: string) => setProtocol(value || '')}
                 disabled={loading}
+                className="dark:!bg-gray-800 dark:!text-gray-100"
               >
                 <Option value="tcp">TCP</Option>
                 <Option value="udp">UDP</Option>
@@ -240,7 +243,7 @@ export default function Server() {
               type="button"
               variant="outlined"
               color="blue-gray"
-              className="flex items-center gap-3"
+              className="flex items-center gap-3 dark:text-gray-300 dark:border-gray-500"
               onClick={handleClear}
             >
               Limpiar Mensajes
@@ -283,12 +286,12 @@ export default function Server() {
       <div className="grid grid-cols-1 gap-4 self-end md:grid-cols-2 lg:grid-cols-4">
         <Card
           shadow={false}
-          className="border border-blue-gray-50 py-4 px-5 shadow-xl shadow-transparent transition-all hover:-translate-y-4 hover:border-blue-gray-100/60 hover:shadow-blue-gray-900/5"
+          className="border border-blue-gray-50 dark:border-gray-700 py-4 px-5 shadow-xl shadow-transparent transition-all hover:-translate-y-4 hover:border-blue-gray-100/60 dark:hover:border-gray-600 hover:shadow-blue-gray-900/5 dark:hover:shadow-black/30 bg-white dark:bg-gray-800"
         >
-          <Typography variant="h5" color="blue-gray" className="mb-3 flex items-center gap-3">
+          <Typography variant="h5" color="blue-gray" className="mb-3 flex items-center gap-3 dark:text-gray-100">
             Cambio de Protocolo
           </Typography>
-          <Typography color="blue-gray" className="font-normal opacity-70">
+          <Typography color="blue-gray" className="font-normal opacity-70 dark:text-gray-300">
             Desde la configuracion del servidor se puede seleccionar el tipo de protocolo a
             utilizar, ya sea TCP o UDP.
           </Typography>
@@ -296,12 +299,12 @@ export default function Server() {
 
         <Card
           shadow={false}
-          className="border border-blue-gray-50 py-4 px-5 shadow-xl shadow-transparent transition-all hover:-translate-y-4 hover:border-blue-gray-100/60 hover:shadow-blue-gray-900/5"
+          className="border border-blue-gray-50 dark:border-gray-700 py-4 px-5 shadow-xl shadow-transparent transition-all hover:-translate-y-4 hover:border-blue-gray-100/60 dark:hover:border-gray-600 hover:shadow-blue-gray-900/5 dark:hover:shadow-black/30 bg-white dark:bg-gray-800"
         >
-          <Typography variant="h5" color="blue-gray" className="mb-3 flex items-center gap-3">
+          <Typography variant="h5" color="blue-gray" className="mb-3 flex items-center gap-3 dark:text-gray-100">
             Historial de Mensajes
           </Typography>
-          <Typography color="blue-gray" className="font-normal opacity-70">
+          <Typography color="blue-gray" className="font-normal opacity-70 dark:text-gray-300">
             Con el objetivo de que al cambiar de protocolo los mensajes no se vean afectados, el
             servidor guarda un historial de mensajes en una lista.
           </Typography>
@@ -309,12 +312,12 @@ export default function Server() {
 
         <Card
           shadow={false}
-          className="border border-blue-gray-50 py-4 px-5 shadow-xl shadow-transparent transition-all hover:-translate-y-4 hover:border-blue-gray-100/60 hover:shadow-blue-gray-900/5"
+          className="border border-blue-gray-50 dark:border-gray-700 py-4 px-5 shadow-xl shadow-transparent transition-all hover:-translate-y-4 hover:border-blue-gray-100/60 dark:hover:border-gray-600 hover:shadow-blue-gray-900/5 dark:hover:shadow-black/30 bg-white dark:bg-gray-800"
         >
-          <Typography variant="h5" color="blue-gray" className="mb-3 flex items-center gap-3">
+          <Typography variant="h5" color="blue-gray" className="mb-3 flex items-center gap-3 dark:text-gray-100">
             Funcionalidad
           </Typography>
-          <Typography color="blue-gray" className="font-normal opacity-70">
+          <Typography color="blue-gray" className="font-normal opacity-70 dark:text-gray-300">
             Para iniciar el Chat el usuario debe ingresar su nombre, podra acceder a la sala de Chat
             y enviar mensajes que los otros usuarios podran ver en tiempo real.
           </Typography>
@@ -322,12 +325,12 @@ export default function Server() {
 
         <Card
           shadow={false}
-          className="border border-blue-gray-50 py-4 px-5 shadow-xl shadow-transparent transition-all hover:-translate-y-4 hover:border-blue-gray-100/60 hover:shadow-blue-gray-900/5"
+          className="border border-blue-gray-50 dark:border-gray-700 py-4 px-5 shadow-xl shadow-transparent transition-all hover:-translate-y-4 hover:border-blue-gray-100/60 dark:hover:border-gray-600 hover:shadow-blue-gray-900/5 dark:hover:shadow-black/30 bg-white dark:bg-gray-800"
         >
-          <Typography variant="h5" color="blue-gray" className="mb-3 flex items-center gap-3">
+          <Typography variant="h5" color="blue-gray" className="mb-3 flex items-center gap-3 dark:text-gray-100">
             Equipo Redes
           </Typography>
-          <Typography color="blue-gray" className="font-normal opacity-70">
+          <Typography color="blue-gray" className="font-normal opacity-70 dark:text-gray-300">
             Nuestro equipo esta conformado por David Escarcega, Roberto Cornejo y Manuel Cortez,
             Proyecto Final de la materia de Redes. (Equipo 8)
           </Typography>
