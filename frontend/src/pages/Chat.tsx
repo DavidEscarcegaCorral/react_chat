@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { clientApi, serverApi } from '../utils/api';
+import { clientApi, serverApi, API_BASE } from '../utils/api';
 import { encryptMessage } from '../utils/crypto';
 import { Button } from '@material-tailwind/react';
 
@@ -15,39 +15,30 @@ interface Message {
   isMyMessage: boolean;
 }
 
-function formatMessages(history: string[], currentUsername: string): Message[] {
-  const formatted: Message[] = history
-    .map((raw, index) => {
-      const parts = raw.includes('|') ? raw.split('|') : [raw, undefined];
-      const msg = parts[0];
-      const ts = parts[1];
-      if (!msg) return null;
-      const firstColon = msg.indexOf(':');
-      if (firstColon === -1) {
-        return null;
-      }
+function parseHistoryLine(raw: string, index: number, currentUsername: string): Message | null {
+  const parts = raw.includes('|') ? raw.split('|') : [raw, undefined];
+  const msg = parts[0];
+  const ts = parts[1];
+  if (!msg) return null;
+  const firstColon = msg.indexOf(':');
+  if (firstColon === -1) return null;
 
-      const user = msg.slice(0, firstColon).trim();
-      const text = msg.slice(firstColon + 1).trim();
-      const isMyMessage = user === currentUsername;
-
-      return {
-        id: 'broadcast-' + index,
-        user: user,
-        text: text,
-        timestamp: ts ? new Date(parseFloat(ts) * 1000) : null,
-        isDM: false,
-        dmRecipient: null,
-        shouldShow: true,
-        isMyMessage: isMyMessage,
-      } as Message;
-    })
-    .filter((m): m is Message => m !== null);
-  return formatted;
+  const user = msg.slice(0, firstColon).trim();
+  const text = msg.slice(firstColon + 1).trim();
+  return {
+    id: 'broadcast-' + index,
+    user,
+    text,
+    timestamp: ts ? new Date(parseFloat(ts) * 1000) : null,
+    isDM: false,
+    dmRecipient: null,
+    shouldShow: true,
+    isMyMessage: user === currentUsername,
+  };
 }
 
 export default function Chat() {
-  const { username, logout, publicKey } = useAuth();
+  const { username, logout, publicKey, token } = useAuth();
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [dmMessages, setDmMessages] = useState<Message[]>([]);
@@ -58,28 +49,13 @@ export default function Chat() {
   const [selectedRecipient, setSelectedRecipient] = useState('all');
   const currentUsername = username || 'Anon';
   const bottomRef = useRef<HTMLDivElement>(null);
-  const lastHistoryLength = useRef(0);
+  const msgCounter = useRef(0);
   const dmIdCounter = useRef(0);
   const connectedRef = useRef(false);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
-
-  async function loadHistory() {
-    try {
-      const data = await clientApi.history();
-      if (data.history.length !== lastHistoryLength.current) {
-        setMessages(formatMessages(data.history, currentUsername));
-        lastHistoryLength.current = data.history.length;
-      }
-    } catch (err: unknown) {
-      console.error('Error al cargar historial:', err);
-      if (err instanceof Error && (err.message.includes('401') || err.message.includes('expirada'))) {
-        await logout();
-      }
-    }
-  }
+  }, [messages, dmMessages]);
 
   async function connectClient() {
     try {
@@ -102,69 +78,77 @@ export default function Chat() {
     }
   }
 
-  async function loadClients() {
-    try {
-      const data = await clientApi.clients();
-      setAvailableClients(data.clients.filter((c: string) => c !== currentUsername));
-    } catch (err) {
-      console.error('Error al cargar clientes:', err);
-    }
-  }
-
-  async function loadDMs() {
-    try {
-      const data = await clientApi.dms(currentUsername);
-
-      if (data.dms && data.dms.length > 0) {
-        const newDMs: Message[] = data.dms
-          .map((dmRaw: string) => {
-            const parts = dmRaw.includes('|') ? dmRaw.split('|') : [dmRaw, undefined];
-            const msg = parts[0];
-            const ts = parts[1];
-            if (!msg) return null;
-            const firstColon = msg.indexOf(':');
-            if (firstColon === -1) return null;
-
-            const sender = msg.slice(0, firstColon).trim();
-            const text = msg.slice(firstColon + 1).trim();
-
-            return {
-              id: 'dm-received-' + dmIdCounter.current++,
-              user: sender,
-              text: text,
-              timestamp: ts ? new Date(parseFloat(ts) * 1000) : new Date(),
-              isDM: true,
-              dmRecipient: currentUsername,
-              shouldShow: true,
-              isMyMessage: false,
-            } as Message;
-          })
-          .filter((dm): dm is Message => dm !== null);
-
-        if (newDMs.length > 0) {
-          setDmMessages((prev) => [...prev, ...newDMs]);
-        }
-      }
-    } catch (err) {
-      console.error('Error al cargar DMs:', err);
-    }
-  }
-
   useEffect(() => {
     connectClient();
-    loadHistory();
-    loadClients();
-    loadDMs();
-    const interval = setInterval(() => {
-      loadHistory();
-      loadClients();
-      loadDMs();
-      if (!connectedRef.current) {
-        connectClient();
-      }
-    }, 800);
+
+    const tokenVal = token || sessionStorage.getItem('token');
+
+    clientApi.history().then((data) => {
+      setMessages(
+        data.history
+          .map((raw: string, i: number) => parseHistoryLine(raw, msgCounter.current++, currentUsername))
+          .filter((m: Message | null): m is Message => m !== null)
+      );
+    }).catch(() => {});
+
+    clientApi.clients().then((data) => {
+      setAvailableClients(data.clients.filter((c: string) => c !== currentUsername));
+    }).catch(() => {});
+
+    if (tokenVal) {
+      const es = new EventSource(`${API_BASE}/client/events?token=${tokenVal}`);
+
+      es.addEventListener('broadcast', (e: MessageEvent) => {
+        try {
+          const data = JSON.parse(e.data);
+          const parsed = parseHistoryLine(data.message, msgCounter.current++, currentUsername);
+          if (parsed) {
+            setMessages((prev) => [...prev, parsed]);
+          }
+        } catch (err) {
+          console.error('Error parsing broadcast event:', err);
+        }
+      });
+
+      es.addEventListener('dm', (e: MessageEvent) => {
+        try {
+          const data = JSON.parse(e.data);
+          const sender = data.from_user;
+          const content = data.content;
+          const ts = content.includes('|') ? content.split('|')[1] : undefined;
+          const cleanText = content.includes('|') ? content.split('|')[0] : content;
+          const firstColon = cleanText.indexOf(':');
+          const displayText = firstColon >= 0 ? cleanText.slice(firstColon + 1).trim() : cleanText;
+
+          const newDM: Message = {
+            id: 'dm-' + dmIdCounter.current++,
+            user: sender,
+            text: displayText,
+            timestamp: ts ? new Date(parseFloat(ts) * 1000) : new Date(),
+            isDM: true,
+            dmRecipient: currentUsername,
+            shouldShow: true,
+            isMyMessage: false,
+          };
+          setDmMessages((prev) => [...prev, newDM]);
+        } catch (err) {
+          console.error('Error parsing dm event:', err);
+        }
+      });
+
+      es.addEventListener('clients', (e: MessageEvent) => {
+        try {
+          const data = JSON.parse(e.data);
+          setAvailableClients((data.clients || []).filter((c: string) => c !== currentUsername));
+        } catch (err) {
+          console.error('Error parsing clients event:', err);
+        }
+      });
+
+      es.onerror = () => {};
+    }
+
     return () => {
-      clearInterval(interval);
       clientApi.logout(currentUsername).catch(() => {});
     };
   }, []);
@@ -218,7 +202,6 @@ export default function Chat() {
         }
 
         setMessage('');
-        setTimeout(loadHistory, 100);
       }
     } catch (err: unknown) {
       console.error('Error enviando mensaje:', err);
@@ -326,6 +309,7 @@ export default function Chat() {
                 : 'Mensaje directo para ' + selectedRecipient
             }
             disabled={loading}
+            maxLength={500}
             className="flex-1 min-h-full px-3 py-2 text-black border-none outline-none resize-none focus:outline-none"
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={(e) => {

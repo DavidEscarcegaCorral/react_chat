@@ -3,6 +3,8 @@ from core.udp_server import UDPServer
 from clients.tcp_client import TCPClient
 from clients.udp_client import UDPClient
 import threading
+import asyncio
+import json
 
 MAX_HISTORY = 1000
 
@@ -20,7 +22,32 @@ class ServerController:
         self.history = []
         self.user_dms = {}
         self._lock = threading.RLock()
+        self._sse_queues = {}
+        self._sse_lock = threading.RLock()
         self.logger.info('ServerController inicializado')
+
+    def subscribe_sse(self, queue, loop):
+        with self._sse_lock:
+            if loop not in self._sse_queues:
+                self._sse_queues[loop] = set()
+            self._sse_queues[loop].add(queue)
+
+    def unsubscribe_sse(self, queue, loop):
+        with self._sse_lock:
+            if loop in self._sse_queues:
+                self._sse_queues[loop].discard(queue)
+
+    def _notify_all(self, event_type, **data):
+        payload = json.dumps({'event': event_type, **data})
+        with self._sse_lock:
+            for loop, queues in list(self._sse_queues.items()):
+                dead = set()
+                for q in queues:
+                    try:
+                        loop.call_soon_threadsafe(q.put_nowait, payload)
+                    except:
+                        dead.add(q)
+                queues -= dead
 
     def run(self, protocol: str):
         self.logger.info(f'Intentando iniciar servidor: {protocol}')
@@ -46,6 +73,7 @@ class ServerController:
                     self.protocol = None
                     return {'error': f'El servidor {protocol.upper()} no pudo iniciar correctamente'}
                 self.logger.info(f'Servidor {protocol} iniciado exitosamente')
+                self._notify_all('server_status', running=True, protocol=self.protocol, clients=list(self.clients), history_len=len(self.history))
                 return {'status': f'Servidor {protocol} iniciado'}
             except Exception as e:
                 self.logger.error(f'Error al iniciar servidor: {e}')
@@ -79,6 +107,7 @@ class ServerController:
             
             self.server = None
             self.protocol = None
+            self._notify_all('server_status', running=False, protocol=None, clients=[], history_len=len(self.history))
             self.logger.info('Servidor detenido exitosamente')
             return {'status': 'Servidor detenido'}
 
@@ -108,6 +137,7 @@ class ServerController:
             self.client_objs[username] = client
             client.start()
             
+            self._notify_all('clients', clients=list(self.clients))
             self.logger.info(f'Cliente {username} creado exitosamente')
             return client
 
@@ -123,12 +153,17 @@ class ServerController:
                 del self.client_objs[username]
             if username in self.clients:
                 self.clients.remove(username)
+            self._notify_all('clients', clients=list(self.clients))
 
     def add_history(self, msg: str):
         with self._lock:
             self.history.append(msg)
             if len(self.history) > MAX_HISTORY:
                 self.history.pop(0)
+        self._notify_all('broadcast', message=msg)
+
+    def notify_dm(self, sender: str, recipient: str, content: str):
+        self._notify_all('dm', from_user=sender, to_user=recipient, content=content)
 
     def get_user_dms(self, username: str):
         dm_key = f'dm_{username}'

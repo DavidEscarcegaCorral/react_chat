@@ -16,14 +16,20 @@ class TCPClient:
         self.recv_thread = None
         self.connect_lock = threading.Lock()
         self.dm_queue = []
+        self._retries = 0
+        self._max_retries = 10
         self.logger.info(f'Cliente TCP creado para {username}')
 
     def start(self):
         threading.Thread(target=self._connect_loop, daemon=True).start()
 
     def _connect_loop(self):
+        backoff = 1
         while self.running:
             if self.sock is None:
+                if self._retries >= self._max_retries:
+                    self.logger.warning(f'{self.username}: límite de reintentos alcanzado ({self._max_retries})')
+                    break
                 try:
                     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     s.settimeout(5)
@@ -34,13 +40,17 @@ class TCPClient:
                     s.sendall(register_msg)
                     
                     self.sock = s
+                    self._retries = 0
+                    backoff = 1
                     self.recv_thread = threading.Thread(target=self._recv_loop, daemon=True)
                     self.recv_thread.start()
                     self.logger.info(f'{self.username} conectado al servidor TCP')
                 except Exception as e:
-                    self.logger.error(f'Error de conexión para {self.username}: {e}')
+                    self._retries += 1
+                    self.logger.error(f'Error de conexión para {self.username} (intento {self._retries}/{self._max_retries}): {e}')
                     self.sock = None
-            time.sleep(1)
+            time.sleep(backoff)
+            backoff = min(backoff * 2, 30)
 
     def _recv_loop(self):
         while self.running and self.sock:

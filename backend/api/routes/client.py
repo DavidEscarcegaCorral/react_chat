@@ -1,6 +1,9 @@
-﻿from fastapi import APIRouter, Request, HTTPException, Header
+﻿from fastapi import APIRouter, Request, HTTPException, Header, Query
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
+import asyncio
+import json
 
 router = APIRouter()
 
@@ -12,15 +15,25 @@ class MessageData(BaseModel):
     username: str
     recipient: str = 'all'
 
-def verify_token(authorization: Optional[str]):
-    if not authorization or not authorization.startswith('Bearer '):
-        raise HTTPException(status_code=401, detail='Token requerido')
+def _extract_token(authorization: Optional[str] = None, token_param: Optional[str] = None):
+    if authorization and authorization.startswith('Bearer '):
+        return authorization.replace('Bearer ', '')
+    if token_param:
+        return token_param
+    return None
+
+def _verify_token_raw(token: str):
     from security.auth_manager import verify_token
-    token = authorization.replace('Bearer ', '')
     valid, username = verify_token(token)
     if not valid:
         raise HTTPException(status_code=401, detail='Token inválido o expirado')
     return username
+
+def verify_token(authorization: Optional[str]):
+    token = _extract_token(authorization)
+    if not token:
+        raise HTTPException(status_code=401, detail='Token requerido')
+    return _verify_token_raw(token)
 
 def decrypt_payload(encrypted: str) -> str:
     if '|' not in encrypted:
@@ -67,6 +80,8 @@ def send(req: Request, data: MessageData, authorization: Optional[str] = Header(
         return {'error': f'El usuario \'{data.recipient}\' no existe o no está conectado'}
     
     plaintext = decrypt_payload(data.message)
+    if len(plaintext) > 500:
+        return {'error': 'El mensaje no puede tener más de 500 caracteres'}
     client = server.client_objs[data.username]
     
     try:
@@ -96,3 +111,41 @@ def get_dms(req: Request, username: str, authorization: Optional[str] = Header(N
     server = req.app.state.server
     dms = server.get_user_dms(username)
     return {'dms': dms}
+
+@router.get('/events')
+async def event_stream(
+    req: Request,
+    authorization: Optional[str] = Header(None),
+    token: Optional[str] = Query(None)
+):
+    raw = _extract_token(authorization, token)
+    if not raw:
+        raise HTTPException(status_code=401, detail='Token requerido')
+    current_user = _verify_token_raw(raw)
+    server = req.app.state.server
+
+    queue = asyncio.Queue()
+    loop = asyncio.get_event_loop()
+    server.subscribe_sse(queue, loop)
+
+    async def generate():
+        try:
+            while True:
+                if await req.is_disconnected():
+                    break
+                try:
+                    raw_data = await asyncio.wait_for(queue.get(), timeout=30)
+                    parsed = json.loads(raw_data)
+                    event_type = parsed.pop('event', None)
+
+                    if event_type == 'dm':
+                        if parsed.get('to_user') != current_user:
+                            continue
+
+                    yield f"event: {event_type}\ndata: {json.dumps(parsed)}\n\n"
+                except asyncio.TimeoutError:
+                    yield f": keepalive\n\n"
+        finally:
+            server.unsubscribe_sse(queue, loop)
+
+    return StreamingResponse(generate(), media_type='text/event-stream')

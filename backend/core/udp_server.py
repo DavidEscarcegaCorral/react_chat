@@ -89,7 +89,9 @@ class UDPServer(threading.Thread):
                             if dm_key not in self.controller.user_dms:
                                 self.controller.user_dms[dm_key] = []
                             self.controller.user_dms[dm_key].append(sender_and_msg)
-                            
+
+                            self.controller.notify_dm(sender_username, recipient, sender_and_msg)
+
                             recipient_addr = self.username_to_addr.get(recipient)
                             
                             if recipient_addr:

@@ -61,7 +61,9 @@ class TCPServer(threading.Thread):
                     if dm_key not in self.controller.user_dms:
                         self.controller.user_dms[dm_key] = []
                     self.controller.user_dms[dm_key].append(sender_and_msg)
-                    
+
+                    self.controller.notify_dm(sender_username, recipient, sender_and_msg)
+
                     recipient_sock = None
                     for sock, username in self.clients.items():
                         if username == recipient:

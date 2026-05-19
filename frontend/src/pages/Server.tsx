@@ -3,10 +3,10 @@ import { Select, Option } from '@material-tailwind/react';
 import { Button } from '@material-tailwind/react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { serverApi } from '../utils/api';
+import { serverApi, API_BASE } from '../utils/api';
 
 export default function Server() {
-  const { username, logout } = useAuth();
+  const { username, logout, token } = useAuth();
   const [protocol, setProtocol] = useState('');
   const [loading, setLoading] = useState(false);
   const [serverStatus, setServerStatus] = useState<{
@@ -17,10 +17,8 @@ export default function Server() {
     clients: string[];
     history_len: number;
   } | null>(null);
-  const [statusLoading, setStatusLoading] = useState(false);
 
   async function checkServerStatus() {
-    setStatusLoading(true);
     try {
       const data = await serverApi.status();
       setServerStatus(data);
@@ -30,15 +28,52 @@ export default function Server() {
       if (err instanceof Error && (err.message.includes('401') || err.message.includes('expirada'))) {
         await logout();
       }
-    } finally {
-      setStatusLoading(false);
     }
   }
 
   useEffect(() => {
     checkServerStatus();
-    const interval = setInterval(checkServerStatus, 3000);
-    return () => clearInterval(interval);
+
+    const tokenVal = token || sessionStorage.getItem('token');
+    if (!tokenVal) return;
+
+    const es = new EventSource(`${API_BASE}/server/events?token=${tokenVal}`);
+
+    es.addEventListener('server_status', (e: MessageEvent) => {
+      try {
+        const data = JSON.parse(e.data);
+        setServerStatus((prev) => ({
+          running: data.running,
+          protocol: data.protocol || prev?.protocol || null,
+          host: prev?.host || '127.0.0.1',
+          port: prev?.port || 1060,
+          clients: data.clients || [],
+          history_len: data.history_len || 0,
+        }));
+        setLoading(data.running);
+      } catch (err) {
+        console.error('Error parsing server_status event:', err);
+      }
+    });
+
+    es.addEventListener('clients', (e: MessageEvent) => {
+      try {
+        const data = JSON.parse(e.data);
+        setServerStatus((prev) => prev ? { ...prev, clients: data.clients || [] } : prev);
+      } catch (err) {
+        console.error('Error parsing clients event:', err);
+      }
+    });
+
+    es.addEventListener('broadcast', (e: MessageEvent) => {
+      setServerStatus((prev) => prev ? { ...prev, history_len: prev.history_len + 1 } : prev);
+    });
+
+    es.onerror = () => {};
+
+    return () => {
+      es.close();
+    };
   }, []);
 
   async function handleRun(event: React.FormEvent<HTMLFormElement>) {
