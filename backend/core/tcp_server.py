@@ -1,11 +1,15 @@
-﻿import socket
+﻿"""Servidor TCP (SOCK_STREAM): maneja conexiones persistentes con protocolo CONECTADO/ALL/DM/DM_SENT."""
+
+import socket
 import threading
 
+
 class TCPServer(threading.Thread):
+    """Thread daemon que acepta conexiones, registra usuarios y enruta broadcasts y DMs."""
+
     def __init__(self, ip, port, controller):
         from utils.logger_config import get_logger
         self.logger = get_logger('tcp_server')
-        
         super().__init__(daemon=True)
         self.ip = ip
         self.port = port
@@ -18,10 +22,8 @@ class TCPServer(threading.Thread):
         self.server.bind((ip, port))
         self.server.listen()
         self.ready.set()
-        self.logger.info(f'TCP Server escuchando en {ip}:{port}')
 
     def run(self):
-        self.logger.info('TCP Server started')
         while self.running:
             try:
                 conn, addr = self.server.accept()
@@ -30,117 +32,84 @@ class TCPServer(threading.Thread):
             threading.Thread(target=self.handle_client, args=(conn, addr), daemon=True).start()
 
     def broadcast(self, message, source_sock):
+        """Procesa ALL: (reenvío a todos) y DM: (envío directo + confirmación DM_SENT)."""
         try:
             decoded = message.decode()
-            self.logger.debug(f'Mensaje recibido: {decoded}')
-            
             if decoded.startswith('ALL:'):
                 msg_content = decoded[4:]
-                self.logger.info(f'Broadcast: {msg_content}')
-                
                 self.controller.add_history(msg_content)
-                
                 for c in list(self.clients.keys()):
                     if c != source_sock:
                         try:
                             c.sendall(message)
                         except:
                             self._remove_client(c)
-            
             elif decoded.startswith('DM:'):
                 parts = decoded.split(':', 3)
-                
                 if len(parts) >= 4:
                     recipient = parts[1]
                     sender_and_msg = ':'.join(parts[2:])
-                    
-                    sender_username = self.clients.get(source_sock, 'unknown')
-                    self.logger.info(f'DM de {sender_username} para {recipient}')
-                    
                     dm_key = f'dm_{recipient}'
                     if dm_key not in self.controller.user_dms:
                         self.controller.user_dms[dm_key] = []
                     self.controller.user_dms[dm_key].append(sender_and_msg)
-
-                    self.controller.notify_dm(sender_username, recipient, sender_and_msg)
-
-                    recipient_sock = None
-                    for sock, username in self.clients.items():
-                        if username == recipient:
-                            recipient_sock = sock
-                            break
-                    
+                    recipient_sock = next((s for s, u in self.clients.items() if u == recipient), None)
                     if recipient_sock:
                         try:
-                            dm_msg = f'DM:{sender_and_msg}'.encode()
-                            recipient_sock.sendall(dm_msg)
+                            recipient_sock.sendall(f'DM:{sender_and_msg}'.encode())
                         except Exception as e:
-                            self.logger.error(f'Error enviando DM: {e}')
+                            self.logger.error(f'Error DM: {e}')
                             self._remove_client(recipient_sock)
-                    
                     try:
-                        confirm_msg = f'DM_SENT:{sender_and_msg}'.encode()
-                        source_sock.sendall(confirm_msg)
+                        source_sock.sendall(f'DM_SENT:{sender_and_msg}'.encode())
                     except Exception as e:
-                        self.logger.error(f'Error enviando confirmación: {e}')
+                        self.logger.error(f'Error confirmación: {e}')
         except Exception as e:
             self.logger.error(f'Error en broadcast: {e}')
 
     def _remove_client(self, conn):
         try:
             if conn in self.clients:
-                username = self.clients[conn]
                 del self.clients[conn]
-                self.logger.info(f'Cliente desconectado: {username}')
             conn.close()
         except Exception as e:
-            self.logger.error(f'Error al remover cliente: {e}')
+            self.logger.error(f'Error removiendo cliente: {e}')
 
     def handle_client(self, conn, addr):
+        """Lee mensajes del socket: CONECTADO: registra, otros van a broadcast()."""
         username = None
-        self.logger.info(f'Nueva conexión desde {addr}')
-        
         while self.running:
             try:
                 data = conn.recv(1024)
                 if not data:
                     break
-                
                 decoded = data.decode()
-                
                 if decoded.startswith('CONECTADO:'):
                     username = decoded.split(':', 1)[1]
                     self.clients[conn] = username
-                    self.logger.info(f'Usuario {username} conectado')
                     continue
-                
                 self.broadcast(data, conn)
-            
             except Exception as e:
                 self.logger.error(f'Error manejando cliente: {e}')
                 break
-        
         self._remove_client(conn)
-        if username:
-            self.logger.info(f'Usuario {username} desconectado')
 
     def stop(self):
-        self.logger.info('Deteniendo TCP Server')
+        """Cierra server socket, envía conexión dummy para desbloquear accept(), cierra sockets cliente."""
         self.running = False
         try:
             self.server.close()
-        except Exception as e:
-            self.logger.error(f'Error cerrando server socket: {e}')
+        except:
+            pass
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             s.connect((self.ip, self.port))
             s.close()
-        except Exception as e:
-            self.logger.error(f'Error cerrando conexión dummy: {e}')
+        except:
+            pass
         for c in list(self.clients.keys()):
             try:
                 c.close()
-            except Exception as e:
-                self.logger.error(f'Error cerrando socket cliente: {e}')
+            except:
+                pass
         self.clients.clear()
-        self.logger.info('TCP Server detenido')

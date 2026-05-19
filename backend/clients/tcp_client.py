@@ -1,12 +1,16 @@
-﻿import socket
+﻿"""Proxy TCP entre API REST y servidor TCP. Reconexión automática en fallo."""
+
+import socket
 import threading
 import time
 
+
 class TCPClient:
+    """Cliente TCP persistente con reconexión: conecta, envía CONECTADO, recibe en segundo plano."""
+
     def __init__(self, username, host, port, controller):
         from utils.logger_config import get_logger
         self.logger = get_logger('tcp_client')
-        
         self.username = username
         self.host = host
         self.port = port
@@ -16,41 +20,27 @@ class TCPClient:
         self.recv_thread = None
         self.connect_lock = threading.Lock()
         self.dm_queue = []
-        self._retries = 0
-        self._max_retries = 10
-        self.logger.info(f'Cliente TCP creado para {username}')
 
     def start(self):
         threading.Thread(target=self._connect_loop, daemon=True).start()
 
     def _connect_loop(self):
-        backoff = 1
+        """Bucle: intenta conectar cada 1s, envía CONECTADO:, inicia recepción."""
         while self.running:
             if self.sock is None:
-                if self._retries >= self._max_retries:
-                    self.logger.warning(f'{self.username}: límite de reintentos alcanzado ({self._max_retries})')
-                    break
                 try:
                     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     s.settimeout(5)
                     s.connect((self.host, self.port))
                     s.settimeout(None)
-                    
-                    register_msg = f'CONECTADO:{self.username}'.encode()
-                    s.sendall(register_msg)
-                    
+                    s.sendall(f'CONECTADO:{self.username}'.encode())
                     self.sock = s
-                    self._retries = 0
-                    backoff = 1
                     self.recv_thread = threading.Thread(target=self._recv_loop, daemon=True)
                     self.recv_thread.start()
-                    self.logger.info(f'{self.username} conectado al servidor TCP')
                 except Exception as e:
-                    self._retries += 1
-                    self.logger.error(f'Error de conexión para {self.username} (intento {self._retries}/{self._max_retries}): {e}')
+                    self.logger.error(f'Error conexión {self.username}: {e}')
                     self.sock = None
-            time.sleep(backoff)
-            backoff = min(backoff * 2, 30)
+            time.sleep(1)
 
     def _recv_loop(self):
         while self.running and self.sock:
@@ -58,47 +48,35 @@ class TCPClient:
                 data = self.sock.recv(1024)
                 if not data:
                     break
-                
-                decoded = data.decode()
-                self.logger.debug(f'Mensaje recibido: {decoded}')
-                
-                if decoded.startswith('DM:') or decoded.startswith('DM_SENT:'):
-                    self.logger.debug(f'DM procesado para {self.username}')
-            
-            except Exception as e:
-                self.logger.error(f'Error recibiendo para {self.username}: {e}')
+            except:
                 break
         try:
             if self.sock:
                 self.sock.close()
-        except Exception as e:
-            self.logger.error(f'Error cerrando socket en recv_loop: {e}')
+        except:
+            pass
         self.sock = None
 
     def send(self, message: str, recipient: str = 'all'):
+        """Envía ALL:<user>: <msg>|<ts> o DM:<recip>:<user>: <msg>|<ts>."""
         if not self.sock:
-            self.logger.error('Socket no disponible')
             return False
-        
         try:
             if recipient == 'all':
                 payload = f'ALL:{self.username}: {message}|{time.time()}'.encode()
             else:
                 payload = f'DM:{recipient}:{self.username}: {message}|{time.time()}'.encode()
-            
             self.sock.sendall(payload)
-            self.logger.info(f'Mensaje enviado a {recipient}')
             return True
         except Exception as e:
-            self.logger.error(f'Error enviando mensaje: {e}')
+            self.logger.error(f'Error enviando: {e}')
             self.sock = None
             return False
 
     def stop(self):
-        self.logger.info(f'Deteniendo cliente {self.username}')
         self.running = False
         try:
             if self.sock:
                 self.sock.close()
-        except Exception as e:
-            self.logger.error(f'Error cerrando socket en stop: {e}')
+        except:
+            pass

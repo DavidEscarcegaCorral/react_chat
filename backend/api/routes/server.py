@@ -1,4 +1,6 @@
-﻿from fastapi import APIRouter, Request, HTTPException, Header, Query
+﻿"""Endpoints de administración del servidor: run/shutdown/status/clear/events SSE."""
+
+from fastapi import APIRouter, Request, HTTPException, Header, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional

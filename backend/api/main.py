@@ -1,4 +1,6 @@
-﻿import os
+﻿"""Punto de entrada FastAPI: configura CORS, inicializa RSA y monta routers /auth, /server, /client."""
+
+import os
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -10,11 +12,12 @@ from utils.logger_config import get_logger
 from security.crypto_manager import initialize as init_crypto
 
 load_dotenv()
-
 logger = get_logger('api')
+
 
 def get_cors_origins():
     return [o.strip() for o in os.environ.get('CORS_ORIGINS', '').split(',') if o.strip()]
+
 
 def main():
     app = FastAPI()
@@ -23,19 +26,14 @@ def main():
         CORSMiddleware,
         allow_origins=get_cors_origins(),
         allow_origin_regex=r'https?://localhost(:\d+)?',
-        allow_credentials=True,
-        allow_methods=['*'],
-        allow_headers=['*']
+        allow_credentials=True, allow_methods=['*'], allow_headers=['*']
     )
-    
     init_crypto()
-    logger.info('Servidor API iniciado - Crypto RSA inicializado')
-    
     app.include_router(auth_router, prefix='/auth', tags=['Auth'])
     app.include_router(server_router, prefix='/server', tags=['Server'])
     app.include_router(client_router, prefix='/client', tags=['Client'])
-    
     return app
+
 
 app = main()
 

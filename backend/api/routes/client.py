@@ -1,4 +1,6 @@
-﻿from fastapi import APIRouter, Request, HTTPException, Header, Query
+﻿"""Endpoints de cliente: login/logout/send/history/clients/DMs/events SSE."""
+
+from fastapi import APIRouter, Request, HTTPException, Header, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional
